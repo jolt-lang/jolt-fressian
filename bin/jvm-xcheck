@@ -1,0 +1,42 @@
+#!/bin/sh
+# bin/jvm-xcheck — the bidirectional JVM cross-write gate.
+#
+# Writes every fress.fixtures/fixtures value with jolt's own writer and reads
+# them back with a real clojure.data.fressian reader, and the reverse: writes
+# with clojure.data.fressian and reads with jolt's own reader. Wire
+# compatibility for a binary format can't be proven by round-tripping within
+# jolt alone — that only proves jolt agrees with itself. This is the actual
+# conformance oracle for that, and unlike a text format's, it isn't
+# throwaway bring-up scaffolding: it stays.
+#
+# Needs `clojure` and `java` on PATH; skips cleanly (exit 0) if either is
+# missing, matching jolt's own `make certify` convention for the same reason.
+set -eu
+root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$root"
+
+jolt="${JOLT_BIN:-jolt}"
+
+if ! command -v clojure >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
+  echo "jvm-xcheck: skipped (clojure and/or java not on PATH)"
+  exit 0
+fi
+
+workdir=/tmp/fress-jvm-xcheck
+rm -rf "$workdir"
+mkdir -p "$workdir"
+trap 'rm -rf "$workdir"' EXIT
+
+fressian_deps='{:deps {org.clojure/data.fressian {:mvn/version "1.0.0"}}}'
+
+echo "== jolt writes, the JVM reads =="
+"$jolt" run test/fress/jolt_write_fixtures.clj
+clojure -Sdeps "$fressian_deps" -M test/fress/jvm_read_check.clj
+
+echo
+echo "== the JVM writes, jolt reads =="
+clojure -Sdeps "$fressian_deps" -M test/fress/jvm_write_fixtures.clj
+"$jolt" run test/fress/jolt_read_check.clj
+
+echo
+echo "jvm-xcheck: PASSED"

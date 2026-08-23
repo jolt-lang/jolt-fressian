@@ -437,7 +437,15 @@
 
 (defn class-sym
   "Record types need a string so the name can survive munging. Is converted to
-   symbol before serializing."
+   symbol before serializing.
+
+   CALLER NOTE: build the `rec->tag`/`record->name` map's keys from an actual
+   INSTANCE's class — `{(class (->Foo ...)) \"foo\"}` — not the bare record
+   type name — `{Foo \"foo\"}`. Confirmed under jolt (unlike real Clojure): a
+   defrecord type referenced by its bare name, even from within its own
+   namespace, does not `=` the Class obtained from an actual instance of it —
+   the same gap documented for the array-dispatch keys earlier in this
+   namespace, just not limited to array or cross-namespace types after all."
   [rec rec->tag]
   (let [name (get rec->tag (type rec))]
     (if (string? name)
@@ -489,7 +497,15 @@
      "[J" writeLongArray
      "[Z" writeBooleanArray
      "[Ljava.lang.Object;" writeObjectArray
-     bd/Bigdec write-bigdecimal
+     ;; (class (bd/bigdec 0 0)), not the bare bd/Bigdec symbol: referencing a
+     ;; defrecord type by its bare name doesn't resolve to a real
+     ;; java.lang.Class under jolt the way Long/String/etc. do (confirmed:
+     ;; `(= (class (bd/bigdec 0 0)) bd/Bigdec)` is false — and this isn't
+     ;; specific to a cross-namespace reference either; see class-sym's
+     ;; docstring below) — only the Class obtained from an actual instance
+     ;; behaves like the ones already used successfully elsewhere in this
+     ;; table.
+     (class (bd/bigdec 0 0)) write-bigdecimal
      java.net.URI writeUri
      ;; writeNull is 1-arg (writeNull is also called directly, unlike every
      ;; other handler here); the handler table always invokes as (handler
