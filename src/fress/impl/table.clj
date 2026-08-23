@@ -21,7 +21,10 @@
 
 (defprotocol IHandlerTable
   (?get [this k])
-  (add-handlers [this handlers]))
+  (add-handlers [this handlers])
+  (entries [this] "the table's [k v k v ...] vector, for callers (like
+    fress.writer's inheritance-lookup builder) that need to scan the keys
+    themselves rather than look one up"))
 
 (defn- index-of [v x]
   (loop [i 0]
@@ -49,7 +52,8 @@
   (?get [_this k]
     (let [i (index-of a k)]
       (when (> i -1) (nth a (inc i)))))
-  (add-handlers [this handlers] (reduce add-handler this handlers)))
+  (add-handlers [this handlers] (reduce add-handler this handlers))
+  (entries [_this] a))
 
 (defn from-array [arr] (HandlerTable. (vec arr)))
 (defn from-table [t] (HandlerTable. (.-a ^HandlerTable t)))
