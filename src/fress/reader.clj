@@ -399,16 +399,24 @@
 (defn readSet [rdr _ _]
   (into #{} (readObject rdr)))
 
+(def ^:private array-map-cutoff
+  "clojure.data.fressian's map read handler builds a PersistentArrayMap when
+  the flat key/value list is shorter than 16 -- fewer than 8 entries -- and a
+  PersistentHashMap at or above it. Matched exactly so a map read off the wire
+  has the same type, and so the same iteration order, as it does on the JVM."
+  16)
+
+(defn- build-map [kvs]
+  (if (< (count kvs) array-map-cutoff)
+    (apply array-map kvs)
+    (apply hash-map kvs)))
+
 (defn readMap [rdr _ _]
-  (if-not *keywordize-keys*
-    (apply hash-map (readObject rdr))
-    (let [in (readObject rdr)]
-      (loop [in (seq in) out (transient {})]
-        (if-not in
-          (persistent! out)
-          (let [k (first in)
-                key (if (string? k) (keyword k) k)]
-            (recur (nnext in) (assoc! out key (second in)))))))))
+  (let [kvs (readObject rdr)]
+    (build-map
+      (if-not *keywordize-keys*
+        kvs
+        (map-indexed (fn [i x] (if (and (even? i) (string? x)) (keyword x) x)) kvs)))))
 
 (defn readIntArray [rdr _ _]
   (let [length (readInt rdr)

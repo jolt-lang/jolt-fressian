@@ -50,6 +50,20 @@ don't exist under jolt).
 | `fress.impl.bigdec/Bigdec` (jolt has no real `BigDecimal` decomposition) | `bigdec` |
 | a `defrecord`                                | `record` (needs `:record->name`/`:name->map-ctor`) |
 
+## Read-back types
+
+A map read off the wire lands on the same type it would on the JVM:
+`clojure.data.fressian` builds a `PersistentArrayMap` below 8 entries and a
+`PersistentHashMap` at or above it, so a small map keeps its written order
+through a round trip either way.
+
+Lists and sets deliberately differ. `clojure.data.fressian` hands back raw
+`java.util.Arrays$ArrayList` and `java.util.HashSet`; this port returns a
+`PersistentVector` and a `PersistentHashSet`, matching upstream `fress`. The
+bytes are identical in both directions and `=` holds against the JVM's Java
+collections, so this costs no wire compatibility — it just skips a conversion
+step every Clojure caller would otherwise have to make.
+
 Known jolt limitations this port works around or can't close (documented
 in-code where they bite): a small bigint (`(bigint 0)`) loses its `BigInt`
 type tag under jolt, so it can't be told apart from a plain `long` and is

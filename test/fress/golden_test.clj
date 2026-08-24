@@ -60,6 +60,29 @@
     (testing (pr-str v)
       (is (= v (roundtrip v))))))
 
+(deftest map-type-parity-test
+  ;; clojure.data.fressian's map read handler yields a PersistentArrayMap
+  ;; below 8 entries and a PersistentHashMap at or above it. Verified against
+  ;; a real JVM reader; a map read off the wire must land on the same type, so
+  ;; that it also iterates in the same order.
+  (doseq [n (range 1 12)]
+    (let [m (into {} (for [i (range n)] [(keyword (str "k" i)) i]))
+          got (roundtrip m)]
+      (testing (str n " entries")
+        (is (= m got))
+        (is (= (if (< n 8) clojure.lang.PersistentArrayMap clojure.lang.PersistentHashMap)
+               (class got))))))
+  (testing "an array-map read back keeps its written order"
+    (is (= [:z :a :m] (keys (roundtrip (array-map :z 1 :a 2 :m 3))))))
+  (testing "keywordized keys land on the same types"
+    (binding [r/*keywordize-keys* true]
+      (is (= clojure.lang.PersistentArrayMap (class (roundtrip {"a" 1}))))
+      (is (= {:a 1} (roundtrip {"a" 1})))
+      (let [big (into {} (for [i (range 8)] [(str "k" i) i]))]
+        (is (= clojure.lang.PersistentHashMap (class (roundtrip big))))
+        (is (= 8 (count (roundtrip big))))
+        (is (every? keyword? (keys (roundtrip big))))))))
+
 (deftest typed-array-roundtrip-test
   (is (arr-eq? (int-array [1 2 3]) (roundtrip (int-array [1 2 3]))))
   (is (arr-eq? (long-array [1 2 3]) (roundtrip (long-array [1 2 3]))))
