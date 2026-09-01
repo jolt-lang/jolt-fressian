@@ -48,7 +48,7 @@
   ^double [bits]
   (let [p (ffi/alloc 8)]
     (try
-      (ffi/write p :int64 0 bits)
+      (ffi/write p :int64 bits 0)
       (ffi/read p :double 0)
       (finally (ffi/free p)))))
 
@@ -56,7 +56,7 @@
   ^double [bits]
   (let [p (ffi/alloc 4)]
     (try
-      (ffi/write p :int32 0 bits)
+      (ffi/write p :int32 bits 0)
       (ffi/read p :float 0)
       (finally (ffi/free p)))))
 

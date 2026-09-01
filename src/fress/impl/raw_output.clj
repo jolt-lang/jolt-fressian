@@ -47,7 +47,7 @@
   ^long [d]
   (let [p (ffi/alloc 8)]
     (try
-      (ffi/write p :double 0 d)
+      (ffi/write p :double d 0)
       (ffi/read p :int64 0)
       (finally (ffi/free p)))))
 
@@ -56,7 +56,7 @@
   ^long [f]
   (let [p (ffi/alloc 4)]
     (try
-      (ffi/write p :float 0 (float f))
+      (ffi/write p :float (float f) 0)
       (ffi/read p :int32 0)
       (finally (ffi/free p)))))
 
